@@ -1,0 +1,12 @@
+[project]
+name = "backend-api"
+version = "1.0.0"
+description = "FastAPI REST API for CDC events and anomaly detections"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.32.0",
+    "clickhouse-connect==0.8.8",
+    "pydantic==2.9.2",
+    "python-dotenv==1.0.1",
+]

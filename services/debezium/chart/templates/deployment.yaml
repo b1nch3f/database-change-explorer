@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium
+  labels:
+    app: debezium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium
+  template:
+    metadata:
+      labels:
+        app: debezium
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z {{ .Values.kafka.bootstrapServers | replace ":9092" "" }} 9092; do echo waiting for kafka; sleep 2; done;']
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z {{ .Values.postgres.host }} {{ .Values.postgres.port }}; do echo waiting for postgres; sleep 2; done;']
+      containers:
+      - name: debezium
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+        ports:
+        - name: http
+          containerPort: 8083
+          protocol: TCP
+        env:
+        - name: BOOTSTRAP_SERVERS
+          value: {{ .Values.kafka.bootstrapServers }}
+        - name: GROUP_ID
+          value: "1"
+        - name: CONFIG_STORAGE_TOPIC
+          value: debezium_connect_configs
+        - name: OFFSET_STORAGE_TOPIC
+          value: debezium_connect_offsets
+        - name: STATUS_STORAGE_TOPIC
+          value: debezium_connect_statuses
+        - name: CONNECT_KEY_CONVERTER
+          value: org.apache.kafka.connect.json.JsonConverter
+        - name: CONNECT_VALUE_CONVERTER
+          value: org.apache.kafka.connect.json.JsonConverter
+        - name: CONNECT_REST_ADVERTISED_HOST_NAME
+          value: debezium
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

@@ -1,0 +1,269 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  labels:
+    app: grafana
+data:
+  cdc-events.json: |
+    {
+      "title": "CDC Events",
+      "uid": "cdc-events",
+      "tags": ["cdc", "events"],
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-7d",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "time_range",
+            "label": "Time Range",
+            "type": "custom",
+            "options": [
+              {"text": "Last 1 hour", "value": "1h"},
+              {"text": "Last 6 hours", "value": "6h"},
+              {"text": "Last 24 hours", "value": "24h"},
+              {"text": "Last 7 days", "value": "7d"},
+              {"text": "Last 30 days", "value": "30d"}
+            ],
+            "current": {"text": "Last 7 days", "value": "7d"}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Total Events Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT toStartOfHour(event_time) as time, CASE operation WHEN 'c' THEN 'CREATE' WHEN 'u' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' WHEN 'r' THEN 'READ' ELSE 'UNKNOWN' END as operation, count() as count FROM cdc_events.cdc_events WHERE $__timeFilter(event_time) GROUP BY time, operation ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {"fillOpacity": 10, "lineWidth": 2}
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Event Rate (events/hour)",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT round(count() / (dateDiff('hour', min(event_time), max(event_time)) + 1), 2) as rate FROM cdc_events.cdc_events WHERE $__timeFilter(event_time)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "events/h",
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Total Events",
+          "type": "stat",
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT count() as total FROM cdc_events.cdc_events WHERE $__timeFilter(event_time)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {"mode": "palette-classic"}
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Recent CDC Events",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 16, "w": 24, "h": 10},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT event_time, table_name, CASE operation WHEN 'c' THEN 'CREATE' WHEN 'u' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' WHEN 'r' THEN 'READ' ELSE 'UNKNOWN' END as operation, primary_key, JSONExtractString(after_json, 'matnr') as material_id FROM cdc_events.cdc_events WHERE $__timeFilter(event_time) ORDER BY event_time DESC LIMIT 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "event_time"},
+                "properties": [{"id": "custom.width", "value": 180}]
+              }
+            ]
+          }
+        }
+      ]
+    }
+
+  anomaly-detections.json: |
+    {
+      "title": "Anomaly Detections",
+      "uid": "anomaly-detections",
+      "tags": ["anomaly", "ml"],
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-7d",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "time_range",
+            "label": "Time Range",
+            "type": "custom",
+            "options": [
+              {"text": "Last 1 hour", "value": "1h"},
+              {"text": "Last 6 hours", "value": "6h"},
+              {"text": "Last 24 hours", "value": "24h"},
+              {"text": "Last 7 days", "value": "7d"},
+              {"text": "Last 30 days", "value": "30d"}
+            ],
+            "current": {"text": "Last 7 days", "value": "7d"}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Anomalies Over Time",
+          "type": "timeseries",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT toStartOfHour(detected_at) as time, count() as anomalies FROM cdc_events.anomaly_detections WHERE is_anomaly = 1 AND $__timeFilter(detected_at) GROUP BY time ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {"fillOpacity": 20, "lineWidth": 2},
+              "color": {"mode": "fixed", "fixedColor": "red"}
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Total Anomalies",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 8, "w": 6, "h": 6},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT count() as total FROM cdc_events.anomaly_detections WHERE is_anomaly = 1 AND $__timeFilter(detected_at)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"value": 0, "color": "green"},
+                  {"value": 10, "color": "yellow"},
+                  {"value": 50, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Avg Anomaly Score",
+          "type": "stat",
+          "gridPos": {"x": 6, "y": 8, "w": 6, "h": 6},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT round(avg(anomaly_score), 4) as avg_score FROM cdc_events.anomaly_detections WHERE is_anomaly = 1 AND $__timeFilter(detected_at)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 4,
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Min/Max Anomaly Score",
+          "type": "stat",
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 6},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT min(anomaly_score) as min_score, max(anomaly_score) as max_score FROM cdc_events.anomaly_detections WHERE is_anomaly = 1 AND $__timeFilter(detected_at)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 4
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Detected Anomalies with Details",
+          "type": "table",
+          "gridPos": {"x": 0, "y": 14, "w": 24, "h": 12},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse"},
+              "rawSql": "SELECT a.detected_at, a.material_id, a.anomaly_score, JSONExtractString(a.features_json, 'brgew') as gross_weight, JSONExtractString(a.features_json, 'ntgew') as net_weight, JSONExtractString(a.features_json, 'volum') as volume, a.model_version FROM cdc_events.anomaly_detections a WHERE a.is_anomaly = 1 AND $__timeFilter(a.detected_at) ORDER BY a.anomaly_score ASC LIMIT 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "detected_at"},
+                "properties": [{"id": "custom.width", "value": 180}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "anomaly_score"},
+                "properties": [
+                  {"id": "custom.width", "value": 120},
+                  {"id": "custom.cellOptions", "value": {"type": "color-background"}}
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }

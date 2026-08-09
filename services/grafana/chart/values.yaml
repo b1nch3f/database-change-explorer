@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: grafana/grafana
+  tag: "11.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Grafana admin credentials
+admin:
+  user: admin
+  password: admin123
+
+# ClickHouse connection
+clickhouse:
+  host: clickhouse
+  port: 8123
+  database: cdc_events
+  user: default
+  password: clickhouse123

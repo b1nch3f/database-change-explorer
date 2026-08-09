@@ -1,0 +1,25 @@
+{
+  "name": "postgres-mara-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "dbuser",
+    "database.password": "dbpass123",
+    "database.dbname": "sourcedb",
+    "database.server.name": "postgres",
+    "table.include.list": "public.mara",
+    "plugin.name": "pgoutput",
+    "publication.autocreate.mode": "filtered",
+    "slot.name": "debezium_mara",
+    "heartbeat.interval.ms": "10000",
+    "snapshot.mode": "initial",
+    "topic.prefix": "postgres",
+    "decimal.handling.mode": "double",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

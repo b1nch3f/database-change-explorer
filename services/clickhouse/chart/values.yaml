@@ -1,0 +1,27 @@
+image:
+  repository: clickhouse/clickhouse-server
+  tag: "24-alpine"
+  pullPolicy: IfNotPresent
+
+credentials:
+  username: default
+  password: clickhouse123
+
+service:
+  type: ClusterIP
+  httpPort: 8123
+  nativePort: 9000
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 20Gi
+
+resources:
+  limits:
+    memory: 2Gi
+    cpu: 2000m
+  requests:
+    memory: 1Gi
+    cpu: 1000m

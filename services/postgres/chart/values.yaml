@@ -1,0 +1,32 @@
+image:
+  repository: postgres
+  tag: "16-alpine"
+  pullPolicy: IfNotPresent
+
+credentials:
+  username: dbuser
+  password: dbpass123
+  database: sourcedb
+
+config:
+  walLevel: logical
+  maxWalSenders: 10
+  maxReplicationSlots: 10
+
+service:
+  type: ClusterIP
+  port: 5432
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: 500m
+  requests:
+    memory: 256Mi
+    cpu: 250m

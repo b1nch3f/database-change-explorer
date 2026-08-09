@@ -1,0 +1,21 @@
+image:
+  repository: ml-inference
+  tag: latest
+  pullPolicy: Never  # Use local Docker image
+
+schedule: "* * * * *"  # Every 1 minute
+
+clickhouse:
+  host: clickhouse
+  port: 8123
+  user: default
+  password: clickhouse123
+  database: cdc_events
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi

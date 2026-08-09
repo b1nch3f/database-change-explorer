@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      initContainers:
+      - name: wait-for-clickhouse
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z {{ .Values.clickhouse.host }} 9000; do echo waiting for clickhouse; sleep 2; done;']
+      containers:
+      - name: backend
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        - name: CLICKHOUSE_HOST
+          value: "{{ .Values.clickhouse.host }}"
+        - name: CLICKHOUSE_PORT
+          value: "{{ .Values.clickhouse.port }}"
+        - name: CLICKHOUSE_USER
+          value: "{{ .Values.clickhouse.user }}"
+        - name: CLICKHOUSE_PASSWORD
+          value: "{{ .Values.clickhouse.password }}"
+        - name: CLICKHOUSE_DATABASE
+          value: "{{ .Values.clickhouse.database }}"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}

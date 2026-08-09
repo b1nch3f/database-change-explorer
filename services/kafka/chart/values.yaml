@@ -1,0 +1,22 @@
+image:
+  repository: docker.redpanda.com/redpandadata/redpanda
+  tag: "v24.2.4"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 9092
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+  requests:
+    memory: 512Mi
+    cpu: 500m

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      initContainers:
+      - name: fix-permissions
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          chown -R 999:999 /var/lib/postgresql/data
+          chmod 700 /var/lib/postgresql/data
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        securityContext:
+          runAsUser: 0
+      containers:
+      - name: postgres
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 999
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+        ports:
+        - name: postgres
+          containerPort: 5432
+          protocol: TCP
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.credentials.username | quote }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.credentials.password | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.credentials.database | quote }}
+        - name: PGDATA
+          value: /var/lib/postgresql/data
+        command:
+        - docker-entrypoint.sh
+        - postgres
+        - -c
+        - wal_level={{ .Values.config.walLevel }}
+        - -c
+        - max_wal_senders={{ .Values.config.maxWalSenders }}
+        - -c
+        - max_replication_slots={{ .Values.config.maxReplicationSlots }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.credentials.username }}
+            - -d
+            - {{ .Values.credentials.database }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.credentials.username }}
+            - -d
+            - {{ .Values.credentials.database }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      - name: data
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: postgres-data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: init-script
+        configMap:
+          name: postgres-init

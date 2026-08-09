@@ -1,0 +1,47 @@
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+ENV/
+
+# Docker
+.dockerignore
+
+# Helm
+charts-packaged/
+*.tgz
+
+# Environment
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (uncomment if you don't want to commit data files)
+# *.csv
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tabix
+description: ClickHouse web UI for querying CDC events
+type: application
+version: 0.1.0
+appVersion: "latest"

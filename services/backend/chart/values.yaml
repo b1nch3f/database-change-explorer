@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: backend-api
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+clickhouse:
+  host: clickhouse
+  port: 8123
+  user: default
+  password: clickhouse123
+  database: cdc_events
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

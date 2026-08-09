@@ -1,0 +1,23 @@
+image:
+  repository: debezium/connect
+  tag: "2.7.0.Final"
+  pullPolicy: IfNotPresent
+
+kafka:
+  bootstrapServers: kafka:9092
+
+postgres:
+  host: postgres
+  port: 5432
+
+service:
+  type: ClusterIP
+  port: 8083
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+  requests:
+    memory: 512Mi
+    cpu: 500m

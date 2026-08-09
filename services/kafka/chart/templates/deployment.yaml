@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          /usr/bin/rpk redpanda start \
+            --smp 1 \
+            --memory 512M \
+            --reserve-memory 0M \
+            --overprovisioned \
+            --node-id 0 \
+            --check=false \
+            --kafka-addr PLAINTEXT://0.0.0.0:9092 \
+            --advertise-kafka-addr PLAINTEXT://kafka:9092
+        ports:
+        - name: kafka
+          containerPort: 9092
+          protocol: TCP
+        - name: admin
+          containerPort: 9644
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/redpanda/data
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      - name: data
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: kafka-data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
