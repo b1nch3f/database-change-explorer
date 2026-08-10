@@ -30,7 +30,6 @@ $services = @(
     @{Name="debezium"; Chart="services/debezium/chart/debezium-0.1.0.tgz"; Wait=120},
     @{Name="ml"; Chart="services/ml/chart/ml-0.1.0.tgz"; Wait=60},
     @{Name="backend"; Chart="services/backend/chart/backend-0.1.0.tgz"; Wait=60},
-    @{Name="frontend"; Chart="services/frontend/chart/frontend-0.1.0.tgz"; Wait=60},
     @{Name="tabix"; Chart="services/tabix/chart/tabix-0.1.0.tgz"; Wait=60},
     @{Name="pgadmin"; Chart="services/pgadmin/chart/pgadmin-0.1.0.tgz"; Wait=120},
     @{Name="grafana"; Chart="services/grafana/chart/grafana-0.1.0.tgz"; Wait=120}
@@ -62,9 +61,10 @@ Write-Host "`nVerifying deployment..." -ForegroundColor Cyan
 kubectl get pods -n db-explorer
 
 Write-Host "`nAccess the UIs:" -ForegroundColor Yellow
-Write-Host "  Frontend Dashboard (Main UI):" -ForegroundColor Cyan
-Write-Host "    kubectl port-forward -n db-explorer svc/frontend 3001:3000" -ForegroundColor White
-Write-Host "    http://localhost:3001" -ForegroundColor Gray
+Write-Host "  Streamlit Dashboard (Main UI - run locally):" -ForegroundColor Cyan
+Write-Host "    cd streamlit" -ForegroundColor White
+Write-Host "    streamlit run app.py" -ForegroundColor White
+Write-Host "    http://localhost:8501" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Backend API (REST endpoints):" -ForegroundColor Cyan
 Write-Host "    kubectl port-forward -n db-explorer svc/backend 8000:8000" -ForegroundColor White

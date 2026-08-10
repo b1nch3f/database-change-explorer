@@ -34,20 +34,8 @@ if ($LASTEXITCODE -ne 0) {
 Pop-Location
 Write-Host "Backend image built successfully" -ForegroundColor Green
 
-# Frontend Next.js image
-Write-Host "Building Frontend Next.js image..." -ForegroundColor Gray
-Push-Location services/frontend
-docker build -t frontend-app:latest .
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to build Frontend Docker image" -ForegroundColor Red
-    Pop-Location
-    exit 1
-}
-Pop-Location
-Write-Host "Frontend image built successfully" -ForegroundColor Green
-
 # Package Helm charts
-$services = @("postgres", "kafka", "clickhouse", "debezium", "ml", "backend", "frontend", "tabix", "pgadmin", "grafana")
+$services = @("postgres", "kafka", "clickhouse", "debezium", "ml", "backend", "tabix", "pgadmin", "grafana")
 
 foreach ($service in $services) {
     Write-Host "`nPackaging $service..." -ForegroundColor Cyan
