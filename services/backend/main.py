@@ -336,11 +336,17 @@ async def get_anomaly_stats(
         result = client.query(query)
         row = result.result_rows[0]
         
+        # Handle NaN when table is empty (nan is not JSON serializable)
+        import math
+        avg_score = 0.0 if row[1] is None or (isinstance(row[1], float) and math.isnan(row[1])) else float(row[1])
+        min_score = 0.0 if row[2] is None or (isinstance(row[2], float) and math.isnan(row[2])) else float(row[2])
+        max_score = 0.0 if row[3] is None or (isinstance(row[3], float) and math.isnan(row[3])) else float(row[3])
+        
         return {
             "total_anomalies": row[0],
-            "avg_score": float(row[1]) if row[1] else 0.0,
-            "min_score": float(row[2]) if row[2] else 0.0,
-            "max_score": float(row[3]) if row[3] else 0.0
+            "avg_score": avg_score,
+            "min_score": min_score,
+            "max_score": max_score
         }
         
     except Exception as e:
