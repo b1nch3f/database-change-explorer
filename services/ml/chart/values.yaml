@@ -1,7 +1,7 @@
 image:
   repository: ml-inference
   tag: latest
-  pullPolicy: Never  # Use local Docker image
+  pullPolicy: IfNotPresent
 
 schedule: "* * * * *"  # Every 1 minute
 

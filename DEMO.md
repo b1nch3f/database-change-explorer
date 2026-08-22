@@ -9,12 +9,13 @@ Ensure services are deployed:
 kubectl get pods -n db-explorer
 ```
 
-You need these 2 services running:
+You need these services running:
 - **backend** (FastAPI REST API)
-- **pgadmin** (data manipulation)
+- **postgres** (source database)
 
 Plus locally:
 - **streamlit** (visualization dashboard)
+- **PostgreSQL client** (DBeaver, pgAdmin Desktop, DataGrip, or psql)
 
 ## Quick Reference
 
@@ -22,11 +23,12 @@ Plus locally:
 |---------|-----|----------|----------|
 | **Streamlit** | http://localhost:8501 | - | - |
 | **Backend API** | http://localhost:8000/docs | - | - |
-| **pgAdmin** | http://localhost:8081 | admin@local.com | admin123 |
+| **PostgreSQL** | localhost:5432 | dbuser | dbpass123 |
 
-**PostgreSQL Connection** (in pgAdmin):
-- Host: `postgres`, Port: `5432`, Database: `sourcedb`
+**PostgreSQL Connection** (via port-forward):
+- Host: `localhost`, Port: `5432`, Database: `sourcedb`
 - Username: `dbuser`, Password: `dbpass123`
+- *Use any PostgreSQL desktop client: DBeaver, pgAdmin Desktop, DataGrip, Azure Data Studio*
 
 ## Setup: Three Terminals
 
@@ -38,28 +40,20 @@ kubectl port-forward -n db-explorer svc/backend 8000:8000
 
 *Keep this running - Streamlit needs to reach the backend API.*
 
-### Terminal 2 - pgAdmin (Data Manipulation)
+### Terminal 2 - PostgreSQL (Database Access)
 
 ```powershell
-kubectl port-forward -n db-explorer svc/pgadmin 8081:80
+kubectl port-forward -n db-explorer svc/postgres 5432:5432
 ```
 
-Open in browser: **http://localhost:8081**
+*Keep this running - Your desktop PostgreSQL client needs to reach the database.*
 
-**Login:**
-- Email: `admin@local.com`
-- Password: `admin123`
-
-**Add PostgreSQL Server:**
-1. Right-click **Servers** → **Register** → **Server**
-2. **General** tab: Name = `DB Explorer`
-3. **Connection** tab:
-   - Host: `postgres`
-   - Port: `5432`
-   - Database: `sourcedb`
-   - Username: `dbuser`
-   - Password: `dbpass123`
-4. Click **Save**
+**Connect with your PostgreSQL client:**
+- Host: `localhost`
+- Port: `5432`
+- Database: `sourcedb`
+- Username: `dbuser`
+- Password: `dbpass123`
 
 ### Terminal 3 - Streamlit Dashboard
 
@@ -91,7 +85,7 @@ Open in browser: **http://localhost:8501**
 
 ### Part 2: Insert New Record
 
-**In pgAdmin**, run this SQL:
+**In your PostgreSQL client**, run this SQL:
 ```sql
 INSERT INTO mara (mandt, matnr, mtart, ersda, ernam) 
 VALUES ('100', 'DEMO001', 'ROH', '20260807', 'DEMOUSER');
@@ -105,7 +99,7 @@ VALUES ('100', 'DEMO001', 'ROH', '20260807', 'DEMOUSER');
 
 ### Part 3: Update Record
 
-**In pgAdmin:**
+**In your PostgreSQL client:**
 ```sql
 UPDATE mara 
 SET mtart = 'FERT' 
@@ -121,7 +115,7 @@ WHERE matnr = 'DEMO001';
 
 ### Part 4: Delete Record
 
-**In pgAdmin:**
+**In your PostgreSQL client:**
 ```sql
 DELETE FROM mara 
 WHERE matnr = 'DEMO001';
@@ -137,7 +131,7 @@ WHERE matnr = 'DEMO001';
 
 ### Part 5: View Anomalies
 
-**In pgAdmin**, insert a material with unusual values:
+**In your PostgreSQL client**, insert a material with unusual values:
 ```sql
 -- Insert anomalous record: extremely heavy material with tiny dimensions
 INSERT INTO mara (mandt, matnr, mtart, ersda, ernam, brgew, ntgew, volum, laeng, breit, hoehe, gewei, meabm) 
@@ -157,7 +151,7 @@ VALUES ('100', 'ANOM001', 'ROH', '20260810', 'DEMOUSER', 9999.0, 9500.0, 0.100, 
 
 Stop the services (Ctrl+C in each terminal):
 - **Terminal 1**: Backend API (port 8000)
-- **Terminal 2**: pgAdmin (port 8081)
+- **Terminal 2**: PostgreSQL (port 5432)
 - **Terminal 3**: Streamlit (port 8501)
 
 Remove all services:

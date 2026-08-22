@@ -5,7 +5,7 @@ Write-Host "Building Database Change Explorer Helm Charts..." -ForegroundColor Y
 
 # Navigate to project root
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location (Join-Path $scriptDir "..")
+Set-Location (Join-Path $scriptDir ".." | Join-Path -ChildPath "..")
 
 # Build Docker images
 Write-Host "`nBuilding Docker images..." -ForegroundColor Cyan
@@ -34,8 +34,28 @@ if ($LASTEXITCODE -ne 0) {
 Pop-Location
 Write-Host "Backend image built successfully" -ForegroundColor Green
 
+# dev01-consumer-service (Java/Maven)
+Write-Host "Building dev01-consumer-service image..." -ForegroundColor Gray
+Push-Location services/dev01-consumer-service
+Write-Host "  Running Maven build..." -ForegroundColor Gray
+mvn clean package -DskipTests
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to build Maven project" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "  Building Docker image..." -ForegroundColor Gray
+docker build -t dev01-consumer-service:1.0.0 .
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to build dev01-consumer-service Docker image" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Pop-Location
+Write-Host "dev01-consumer-service image built successfully" -ForegroundColor Green
+
 # Package Helm charts
-$services = @("postgres", "kafka", "clickhouse", "debezium", "ml", "backend", "tabix", "pgadmin", "grafana")
+$services = @("postgres", "kafka", "clickhouse", "debezium", "dev01-consumer-service", "ml", "backend", "tabix", "pgadmin", "grafana")
 
 foreach ($service in $services) {
     Write-Host "`nPackaging $service..." -ForegroundColor Cyan

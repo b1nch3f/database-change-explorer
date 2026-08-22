@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: cdc-consumer
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:clickhouse-consumer}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 500
+      properties:
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 3000
+        max.poll.interval.ms: 300000
+
+    listener:
+      ack-mode: manual
+      concurrency: ${KAFKA_CONSUMER_THREADS:3}
+
+clickhouse:
+  url: ${CLICKHOUSE_URL:jdbc:clickhouse://clickhouse:8123/cdc_events}
+  username: ${CLICKHOUSE_USER:default}
+  password: ${CLICKHOUSE_PASSWORD:}
+  batch-size: ${CLICKHOUSE_BATCH_SIZE:1000}
+  batch-timeout-ms: ${CLICKHOUSE_BATCH_TIMEOUT:5000}
+
+consumer:
+  topic-pattern: ${KAFKA_TOPIC_PATTERN:postgres\\.public\\..*}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    io.cdcconsumer: DEBUG
+    org.springframework.kafka: INFO
+    com.clickhouse: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

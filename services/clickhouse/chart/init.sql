@@ -27,55 +27,8 @@ ORDER BY (event_date, table_name, primary_key, event_time)
 TTL event_date + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 
--- Create Kafka engine table to consume CDC events from Kafka
-CREATE TABLE IF NOT EXISTS cdc_events_queue (
-    message String
-) ENGINE = Kafka
-SETTINGS 
-    kafka_broker_list = 'kafka:9092',
-    kafka_topic_list = 'postgres.public.mara',
-    kafka_group_name = 'clickhouse-consumer',
-    kafka_format = 'JSONAsString',
-    kafka_num_consumers = 1;
-
--- Create materialized view to parse Debezium envelope and persist events
-CREATE MATERIALIZED VIEW IF NOT EXISTS cdc_events_consumer TO cdc_events AS
-SELECT
-    -- Extract timestamp
-    fromUnixTimestamp64Milli(
-        CAST(JSONExtractString(message, 'ts_ms') AS Int64)
-    ) AS event_time,
-    toDate(event_time) AS event_date,
-    
-    -- Extract source metadata
-    JSONExtractString(message, 'source', 'db') AS database,
-    JSONExtractString(message, 'source', 'schema') AS schema,
-    JSONExtractString(message, 'source', 'table') AS table_name,
-    
-    -- Build primary key from after/before data
-    JSONExtractRaw(
-        COALESCE(
-            JSONExtractRaw(message, 'after'),
-            JSONExtractRaw(message, 'before')
-        )
-    ) AS primary_key,
-    
-    -- Extract operation (r=read, c=create, u=update, d=delete) and cast to Enum8
-    CAST(JSONExtractString(message, 'op') AS Enum8('r'=1, 'c'=2, 'u'=3, 'd'=4)) AS operation,
-    
-    -- Extract before/after states
-    JSONExtractRaw(message, 'before') AS before_json,
-    JSONExtractRaw(message, 'after') AS after_json,
-    
-    -- Extract transaction metadata
-    JSONExtractString(message, 'source', 'txId') AS transaction_id,
-    JSONExtractString(message, 'source', 'lsn') AS lsn,
-    
-    -- Store raw event
-    message AS raw_event,
-    
-    now64(3) AS ingested_at
-FROM cdc_events_queue;
+-- NOTE: Kafka engine and materialized view removed.
+-- CDC events are now inserted by the external Java consumer service.
 
 -- Create a view for easier querying
 CREATE VIEW IF NOT EXISTS cdc_events_readable AS

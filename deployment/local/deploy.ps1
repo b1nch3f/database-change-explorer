@@ -9,7 +9,7 @@ Write-Host "Deploying Database Change Explorer..." -ForegroundColor Yellow
 
 # Navigate to project root
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location (Join-Path $scriptDir "..")
+Set-Location (Join-Path $scriptDir ".." | Join-Path -ChildPath "..")
 
 # Create namespace unless skipped
 if (-not $SkipNamespace) {
@@ -28,10 +28,10 @@ $services = @(
     @{Name="kafka"; Chart="services/kafka/chart/kafka-0.1.0.tgz"; Wait=120},
     @{Name="clickhouse"; Chart="services/clickhouse/chart/clickhouse-0.1.0.tgz"; Wait=120},
     @{Name="debezium"; Chart="services/debezium/chart/debezium-0.1.0.tgz"; Wait=120},
+    @{Name="dev01-consumer"; Chart="services/dev01-consumer-service/chart/dev01-consumer-service-0.1.0.tgz"; Wait=90},
     @{Name="ml"; Chart="services/ml/chart/ml-0.1.0.tgz"; Wait=60},
     @{Name="backend"; Chart="services/backend/chart/backend-0.1.0.tgz"; Wait=60},
     @{Name="tabix"; Chart="services/tabix/chart/tabix-0.1.0.tgz"; Wait=60},
-    @{Name="pgadmin"; Chart="services/pgadmin/chart/pgadmin-0.1.0.tgz"; Wait=120},
     @{Name="grafana"; Chart="services/grafana/chart/grafana-0.1.0.tgz"; Wait=120}
 )
 
@@ -46,7 +46,10 @@ foreach ($svc in $services) {
     }
     
     Write-Host "Waiting for $($svc.Name) to be ready..." -ForegroundColor Gray
-    kubectl wait --for=condition=ready pod -l app=$svc.Name -n db-explorer --timeout="$($svc.Wait)s" 2>$null
+    
+    # Use different label for dev01-consumer (chart name vs app label)
+    $labelSelector = if ($svc.Name -eq "dev01-consumer") { "app=dev01-consumer-service" } else { "app=$($svc.Name)" }
+    kubectl wait --for=condition=ready pod -l $labelSelector -n db-explorer --timeout="$($svc.Wait)s" 2>$null
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "$($svc.Name) deployed and ready" -ForegroundColor Green
@@ -57,7 +60,11 @@ foreach ($svc in $services) {
 
 Write-Host "`nDeployment Complete!" -ForegroundColor Green
 
-Write-Host "`nVerifying deployment..." -ForegroundColor Cyan
+Write-Host "`nCheck CDC Consumer Status:" -ForegroundColor Yellow
+Write-Host "  kubectl logs -n db-explorer -l app=dev01-consumer-service -f" -ForegroundColor White
+Write-Host ""
+
+Write-Host "Verifying deployment..." -ForegroundColor Cyan
 kubectl get pods -n db-explorer
 
 Write-Host "`nAccess the UIs:" -ForegroundColor Yellow
@@ -70,9 +77,9 @@ Write-Host "  Backend API (REST endpoints):" -ForegroundColor Cyan
 Write-Host "    kubectl port-forward -n db-explorer svc/backend 8000:8000" -ForegroundColor White
 Write-Host "    http://localhost:8000/docs" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  pgAdmin (Data Manipulation):" -ForegroundColor Yellow
-Write-Host "    kubectl port-forward -n db-explorer svc/pgadmin 8081:80" -ForegroundColor White
-Write-Host "    http://localhost:8081 (admin@local.com / admin123)" -ForegroundColor Gray
+Write-Host "  PostgreSQL (Database Access - use desktop client like DBeaver):" -ForegroundColor Yellow
+Write-Host "    kubectl port-forward -n db-explorer svc/postgres 5432:5432" -ForegroundColor White
+Write-Host "    localhost:5432 / sourcedb / dbuser / dbpass123" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Grafana (Developer Monitoring):" -ForegroundColor Yellow
 Write-Host "    kubectl port-forward -n db-explorer svc/grafana 3000:3000" -ForegroundColor White
