@@ -23,3 +23,21 @@ data:
           password: {{ .Values.clickhouse.password }}
         isDefault: true
         editable: false
+  postgres.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Postgres (source)
+        uid: postgres-source
+        type: grafana-postgresql-datasource
+        access: proxy
+        url: {{ .Values.postgres.host }}:{{ .Values.postgres.port }}
+        user: ${POSTGRES_USER}
+        jsonData:
+          database: {{ .Values.postgres.database }}
+          sslmode: disable
+          postgresVersion: 1600
+        secureJsonData:
+          # Read from the pod environment, which comes from the credentials Secret.
+          password: ${POSTGRES_PASSWORD}
+        isDefault: false
+        editable: false

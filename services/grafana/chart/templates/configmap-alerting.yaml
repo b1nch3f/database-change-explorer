@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting
+  labels:
+    app: grafana
+data:
+  cdc-alerts.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: cdc
+        folder: Database Change Explorer
+        interval: 1m
+        rules:
+          - uid: cdc-slot-wal-retained
+            title: Replication slot retaining too much WAL
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange: {from: 300, to: 0}
+                datasourceUid: postgres-source
+                model:
+                  refId: A
+                  format: table
+                  rawQuery: true
+                  editorMode: code
+                  rawSql: "SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS retained_bytes FROM pg_replication_slots"
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  refId: B
+                  type: threshold
+                  expression: A
+                  conditions:
+                    - evaluator:
+                        type: gt
+                        params: [{{ .Values.alerts.slotRetainedBytes | int64 }}]
+            for: 5m
+            noDataState: OK
+            execErrState: Error
+            labels:
+              severity: warning
+            annotations:
+              summary: "Slot {{ "{{" }} $labels.slot_name {{ "}}" }} is holding back WAL; the CDC connector is stalled or behind."
