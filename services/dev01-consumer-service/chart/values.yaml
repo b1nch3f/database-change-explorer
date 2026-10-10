@@ -23,6 +23,8 @@ kafka:
   consumerGroup: "dev01-consumer"
   topicPattern: "dev01\\.public\\..*"
   consumerThreads: 3
+  # Records per poll; each poll is written to ClickHouse, then acknowledged.
+  maxPollRecords: 500
 
 # ClickHouse configuration
 clickhouse:
@@ -30,7 +32,6 @@ clickhouse:
   user: "default"
   password: "clickhouse123"
   batchSize: 1000
-  batchTimeout: 5000
 
 # Strategy for rolling updates
 strategy:

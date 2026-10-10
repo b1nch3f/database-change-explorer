@@ -10,6 +10,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.ExponentialBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -58,7 +60,20 @@ public class KafkaConfig {
         factory.setConcurrency(concurrency);
         factory.setBatchListener(true);  // Enable batch processing
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-        
+        factory.setCommonErrorHandler(errorHandler());
+
         return factory;
+    }
+
+    /**
+     * Retry a failed batch until it succeeds, backing off up to one minute.
+     * The default handler gives up after a few retries and commits the offsets,
+     * which would drop the batch during a ClickHouse outage.
+     */
+    @Bean
+    public DefaultErrorHandler errorHandler() {
+        ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
+        backOff.setMaxInterval(60_000L);  // no max elapsed time: retry indefinitely
+        return new DefaultErrorHandler(backOff);
     }
 }

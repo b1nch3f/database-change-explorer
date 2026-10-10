@@ -44,8 +44,8 @@ spec:
           value: {{ .Values.clickhouse.password | quote }}
         - name: CLICKHOUSE_BATCH_SIZE
           value: {{ .Values.clickhouse.batchSize | quote }}
-        - name: CLICKHOUSE_BATCH_TIMEOUT
-          value: {{ .Values.clickhouse.batchTimeout | quote }}
+        - name: KAFKA_MAX_POLL_RECORDS
+          value: {{ .Values.kafka.maxPollRecords | quote }}
         
         ports:
         - name: http

@@ -10,7 +10,7 @@ spring:
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      max-poll-records: 500
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:500}
       properties:
         session.timeout.ms: 30000
         heartbeat.interval.ms: 3000
@@ -25,7 +25,6 @@ clickhouse:
   username: ${CLICKHOUSE_USER:default}
   password: ${CLICKHOUSE_PASSWORD:}
   batch-size: ${CLICKHOUSE_BATCH_SIZE:1000}
-  batch-timeout-ms: ${CLICKHOUSE_BATCH_TIMEOUT:5000}
 
 consumer:
   topic-pattern: ${KAFKA_TOPIC_PATTERN:postgres\\.public\\..*}
