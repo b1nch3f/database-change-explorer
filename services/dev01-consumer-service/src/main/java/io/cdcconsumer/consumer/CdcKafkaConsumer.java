@@ -21,6 +21,11 @@ import java.util.List;
 /**
  * Kafka consumer for CDC events.
  * Subscribes to topics matching the pattern and processes Debezium events.
+ *
+ * <p>Delivery is at-least-once: each poll's events are written to ClickHouse
+ * before the poll is acknowledged. If the write fails, nothing is acknowledged
+ * and the container redelivers the same records, so a crash or a ClickHouse
+ * outage never loses events (it can duplicate them; dedupe on lsn downstream).
  */
 @Slf4j
 @Service
@@ -33,12 +38,6 @@ public class CdcKafkaConsumer {
     @Value("${clickhouse.batch-size}")
     private int batchSize;
 
-    @Value("${clickhouse.batch-timeout-ms}")
-    private long batchTimeoutMs;
-
-    private final List<CdcEvent> eventBatch = new ArrayList<>();
-    private long lastFlushTime = System.currentTimeMillis();
-
     /**
      * Kafka listener that subscribes to topics matching the configured pattern.
      * Pattern is defined in application.yml: consumer.topic-pattern
@@ -47,44 +46,33 @@ public class CdcKafkaConsumer {
         topicPattern = "${consumer.topic-pattern}",
         containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(List<ConsumerRecord<String, String>> records, Acknowledgment ack) {
+    public void consume(List<ConsumerRecord<String, String>> records, Acknowledgment ack) throws SQLException {
         log.debug("Received {} records from Kafka", records.size());
 
-        try {
-            for (ConsumerRecord<String, String> record : records) {
-                try {
-                    CdcEvent event = parseDebeziumEvent(record);
-                    if (event != null) {
-                        synchronized (eventBatch) {
-                            eventBatch.add(event);
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to parse Debezium event from topic {}, partition {}, offset {}: {}",
-                            record.topic(), record.partition(), record.offset(), e.getMessage(), e);
-                    // Continue processing other records
+        List<CdcEvent> events = new ArrayList<>(records.size());
+        for (ConsumerRecord<String, String> record : records) {
+            if (record.value() == null) {
+                // Tombstone after a delete: the delete event itself came just before it.
+                continue;
+            }
+            try {
+                CdcEvent event = parseDebeziumEvent(record);
+                if (event != null) {
+                    events.add(event);
                 }
+            } catch (Exception e) {
+                log.error("Failed to parse Debezium event from topic {}, partition {}, offset {}: {}",
+                        record.topic(), record.partition(), record.offset(), e.getMessage(), e);
+                // Skip unparseable records; they would fail the same way on redelivery.
             }
-
-            // Check if we should flush the batch
-            boolean shouldFlush = false;
-            synchronized (eventBatch) {
-                shouldFlush = eventBatch.size() >= batchSize || 
-                             (System.currentTimeMillis() - lastFlushTime) >= batchTimeoutMs;
-            }
-
-            if (shouldFlush) {
-                flushBatch();
-            }
-
-            // Acknowledge the Kafka records
-            ack.acknowledge();
-
-        } catch (Exception e) {
-            log.error("Error processing Kafka records batch", e);
-            // Don't acknowledge - records will be reprocessed
-            throw e;
         }
+
+        // Write everything from this poll, then acknowledge. An exception here
+        // propagates without acknowledging, so the records are redelivered.
+        for (int i = 0; i < events.size(); i += batchSize) {
+            clickHouseRepository.insertBatch(events.subList(i, Math.min(i + batchSize, events.size())));
+        }
+        ack.acknowledge();
     }
 
     /**
@@ -120,44 +108,5 @@ public class CdcKafkaConsumer {
                 .lsn(envelope.getSource().getLsn())
                 .rawEvent(json)
                 .build();
-    }
-
-    /**
-     * Flush accumulated events to ClickHouse.
-     */
-    private void flushBatch() {
-        List<CdcEvent> eventsToInsert;
-        synchronized (eventBatch) {
-            if (eventBatch.isEmpty()) {
-                return;
-            }
-            eventsToInsert = new ArrayList<>(eventBatch);
-            eventBatch.clear();
-            lastFlushTime = System.currentTimeMillis();
-        }
-
-        try {
-            clickHouseRepository.insertBatch(eventsToInsert);
-        } catch (SQLException e) {
-            log.error("Failed to insert batch into ClickHouse, re-adding to batch", e);
-            // Re-add events to batch for retry
-            synchronized (eventBatch) {
-                eventBatch.addAll(0, eventsToInsert);
-            }
-            throw new RuntimeException("ClickHouse insert failed", e);
-        }
-    }
-
-    /**
-     * Scheduled task to flush batch on timeout.
-     */
-    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 1000)
-    public void scheduledFlush() {
-        synchronized (eventBatch) {
-            if (!eventBatch.isEmpty() && 
-                (System.currentTimeMillis() - lastFlushTime) >= batchTimeoutMs) {
-                flushBatch();
-            }
-        }
     }
 }

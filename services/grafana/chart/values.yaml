@@ -29,3 +29,16 @@ clickhouse:
   database: cdc_events
   user: default
   password: clickhouse123
+
+# Source PostgreSQL, for the replication-slot dashboard and alert.
+# Credentials come from the same Secret the postgres chart uses.
+postgres:
+  host: postgres
+  port: 5432
+  database: sourcedb
+  existingSecret: postgres-credentials
+
+alerts:
+  # Alert when a replication slot holds back more WAL than this (bytes).
+  # Keep it below postgres config.maxSlotWalKeepSize.
+  slotRetainedBytes: 1073741824

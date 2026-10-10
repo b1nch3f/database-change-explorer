@@ -44,9 +44,15 @@ spec:
           protocol: TCP
         env:
         - name: POSTGRES_USER
-          value: {{ .Values.credentials.username | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.existingSecret | default "postgres-credentials" }}
+              key: username
         - name: POSTGRES_PASSWORD
-          value: {{ .Values.credentials.password | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.existingSecret | default "postgres-credentials" }}
+              key: password
         - name: POSTGRES_DB
           value: {{ .Values.credentials.database | quote }}
         - name: PGDATA
@@ -60,6 +66,8 @@ spec:
         - max_wal_senders={{ .Values.config.maxWalSenders }}
         - -c
         - max_replication_slots={{ .Values.config.maxReplicationSlots }}
+        - -c
+        - max_slot_wal_keep_size={{ .Values.config.maxSlotWalKeepSize }}
         volumeMounts:
         - name: data
           mountPath: /var/lib/postgresql/data

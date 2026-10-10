@@ -1,3 +1,36 @@
+{{- $c := .Values.connector -}}
+{{- $secretDir := "/etc/debezium/secrets/postgres" -}}
+{{- $cfg := dict
+  "connector.class" "io.debezium.connector.postgresql.PostgresConnector"
+  "tasks.max" "1"
+  "database.hostname" .Values.postgres.host
+  "database.port" (toString .Values.postgres.port)
+  "database.user" (printf "${dir:%s:username}" $secretDir)
+  "database.password" (printf "${dir:%s:password}" $secretDir)
+  "database.dbname" $c.database
+  "topic.prefix" $c.topicPrefix
+  "table.include.list" (join "," $c.tableIncludeList)
+  "plugin.name" "pgoutput"
+  "publication.autocreate.mode" "filtered"
+  "slot.name" $c.slotName
+  "heartbeat.interval.ms" (toString $c.heartbeatIntervalMs)
+  "snapshot.mode" $c.snapshotMode
+  "tombstones.on.delete" (toString $c.tombstonesOnDelete)
+  "decimal.handling.mode" "double"
+  "key.converter" "org.apache.kafka.connect.json.JsonConverter"
+  "key.converter.schemas.enable" "false"
+  "value.converter" "org.apache.kafka.connect.json.JsonConverter"
+  "value.converter.schemas.enable" "false"
+-}}
+{{- if $c.messageKeyColumns }}
+{{- $_ := set $cfg "message.key.columns" $c.messageKeyColumns }}
+{{- end }}
+{{- if $c.replicaIdentity }}
+{{- $_ := set $cfg "replica.identity.autoset.values" (join "," $c.replicaIdentity) }}
+{{- end }}
+{{- range $k, $v := $c.extraConfig }}
+{{- $_ := set $cfg $k (toString $v) }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,5 +38,6 @@ metadata:
   labels:
     app: debezium
 data:
-  postgres-connector.json: |
-    {{- .Files.Get "postgres-connector.json" | nindent 4 }}
+  connector-name: {{ $c.name | quote }}
+  connector-config.json: |
+{{ $cfg | toPrettyJson | indent 4 }}

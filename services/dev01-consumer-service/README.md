@@ -85,8 +85,8 @@ dev01-consumer-service/
 | `CLICKHOUSE_URL` | `jdbc:clickhouse://clickhouse:8123/cdc_events` | JDBC URL |
 | `CLICKHOUSE_USER` | `default` | Username |
 | `CLICKHOUSE_PASSWORD` | `` | Password |
-| `CLICKHOUSE_BATCH_SIZE` | `1000` | Max events per batch |
-| `CLICKHOUSE_BATCH_TIMEOUT` | `5000` | Max ms to wait for batch |
+| `KAFKA_MAX_POLL_RECORDS` | `500` | Records per poll; each poll is written to ClickHouse, then acknowledged |
+| `CLICKHOUSE_BATCH_SIZE` | `1000` | Max events per ClickHouse insert |
 
 ### Performance Tuning
 
@@ -95,10 +95,10 @@ dev01-consumer-service/
 env:
 - name: KAFKA_CONSUMER_THREADS
   value: "5"
+- name: KAFKA_MAX_POLL_RECORDS
+  value: "2000"
 - name: CLICKHOUSE_BATCH_SIZE
   value: "2000"
-- name: CLICKHOUSE_BATCH_TIMEOUT
-  value: "3000"
 resources:
   limits:
     memory: "2Gi"
@@ -109,10 +109,8 @@ replicas: 5
 **Low Latency (near real-time):**
 ```yaml
 env:
-- name: CLICKHOUSE_BATCH_SIZE
+- name: KAFKA_MAX_POLL_RECORDS
   value: "100"
-- name: CLICKHOUSE_BATCH_TIMEOUT
-  value: "1000"
 ```
 
 ## Build & Deploy

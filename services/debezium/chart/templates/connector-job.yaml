@@ -1,9 +1,14 @@
+# Creates the connector, or updates its config if it already exists, on every
+# install and upgrade. PUT /connectors/{name}/config is idempotent.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: debezium-register-connector
   labels:
     app: debezium
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 10
@@ -31,32 +36,23 @@ spec:
         - sh
         - -c
         - |
-          # Check if connector already exists
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://debezium:8083/connectors/postgres-mara-connector)
-          
-          if [ "$STATUS" = "200" ]; then
-            echo "Connector already exists, checking status..."
-            curl -s http://debezium:8083/connectors/postgres-mara-connector/status
-            exit 0
-          fi
-          
-          # Register the connector
-          echo "Registering connector..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://debezium:8083/connectors \
+          NAME=$(cat /config/connector-name)
+          echo "Applying config for connector $NAME..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://debezium:8083/connectors/$NAME/config" \
             -H "Content-Type: application/json" \
-            -d @/config/postgres-connector.json)
-          
+            -d @/config/connector-config.json)
+
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | head -n-1)
-          
-          # 201 = created, 409 = already exists (both are success)
-          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "409" ]; then
-            echo "Connector registered successfully (HTTP $HTTP_CODE)"
+
+          # 201 = created, 200 = updated
+          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "Connector $NAME applied (HTTP $HTTP_CODE)"
             sleep 5
-            curl -s http://debezium:8083/connectors/postgres-mara-connector/status
+            curl -s "http://debezium:8083/connectors/$NAME/status"
             exit 0
           else
-            echo "Connector registration failed (HTTP $HTTP_CODE)"
+            echo "Connector apply failed (HTTP $HTTP_CODE)"
             echo "$BODY"
             exit 1
           fi

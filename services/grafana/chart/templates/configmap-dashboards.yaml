@@ -267,3 +267,64 @@ data:
         }
       ]
     }
+  cdc-replication-slots.json: |
+    {
+      "title": "CDC Replication Slots",
+      "uid": "cdc-replication-slots",
+      "tags": ["cdc", "postgres", "replication"],
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "WAL retained per slot",
+          "description": "WAL that Postgres keeps on disk because a slot has not confirmed it. Growing means the CDC connector is stalled or behind. At max_slot_wal_keep_size the slot is invalidated and needs a re-snapshot.",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres-source"},
+              "format": "table",
+              "rawQuery": true,
+              "editorMode": "code",
+              "rawSql": "SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS retained_bytes FROM pg_replication_slots",
+              "refId": "A"
+            }
+          ],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": true}, "colorMode": "background", "textMode": "value_and_name"},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "orange", "value": 268435456},
+                  {"color": "red", "value": 1073741824}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Slot status",
+          "description": "wal_status 'lost' means the slot was invalidated; the connector must be re-snapshotted. active = false means no consumer is attached.",
+          "type": "table",
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres-source"},
+              "format": "table",
+              "rawQuery": true,
+              "editorMode": "code",
+              "rawSql": "SELECT slot_name, plugin, active, wal_status, pg_size_pretty(safe_wal_size) AS safe_wal_size, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS unconfirmed FROM pg_replication_slots",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    }

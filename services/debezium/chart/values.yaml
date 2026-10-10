@@ -10,6 +10,38 @@ postgres:
   host: postgres
   port: 5432
 
+# Database credentials come from a Kubernetes Secret with keys `username` and
+# `password`, mounted as files and read through Kafka Connect's
+# DirectoryConfigProvider. They never appear in the connector config, a
+# ConfigMap or the Connect REST API.
+credentials:
+  existingSecret: postgres-credentials
+
+# Connector settings. Override these per deployment; the defaults capture the
+# demo MARA table.
+connector:
+  name: postgres-mara-connector
+  database: sourcedb
+  topicPrefix: dev01
+  slotName: debezium_dev01
+  tableIncludeList:
+    - public.mara
+  # Kafka message key per table, as "schema.table:col1,col2" entries joined by
+  # ";". Empty means each table's primary key. Example for per-conversation
+  # ordering: "public.messages:conversation_id"
+  messageKeyColumns: ""
+  # Replica identity Debezium sets on each table at start, so update and delete
+  # events carry the full old row. Requires the connector user to own the tables.
+  replicaIdentity:
+    - public.mara:FULL
+  # Emit a tombstone (null value) after each delete, so log-compacted topics and
+  # downstream erasure can drop the key.
+  tombstonesOnDelete: true
+  snapshotMode: initial
+  heartbeatIntervalMs: 10000
+  # Any other Debezium connector properties, passed through as-is.
+  extraConfig: {}
+
 service:
   type: ClusterIP
   port: 8083

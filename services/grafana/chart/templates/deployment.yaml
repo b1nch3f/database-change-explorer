@@ -34,6 +34,18 @@ spec:
           value: "grafana-clickhouse-datasource"
         - name: GF_PATHS_PROVISIONING
           value: "/etc/grafana/provisioning"
+        # Credentials for the source Postgres datasource, used by the
+        # replication-slot dashboard and alert.
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgres.existingSecret }}
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgres.existingSecret }}
+              key: password
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
@@ -43,6 +55,8 @@ spec:
           mountPath: /etc/grafana/provisioning/dashboards
         - name: dashboards
           mountPath: /var/lib/grafana/dashboards
+        - name: alerting
+          mountPath: /etc/grafana/provisioning/alerting
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         livenessProbe:
@@ -69,3 +83,6 @@ spec:
       - name: dashboards
         configMap:
           name: grafana-dashboards
+      - name: alerting
+        configMap:
+          name: grafana-alerting
