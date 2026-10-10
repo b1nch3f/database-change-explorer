@@ -4,6 +4,9 @@ image:
   pullPolicy: IfNotPresent
 
 credentials:
+  # Name of an existing Secret with keys `username` and `password`. When empty,
+  # the chart creates `postgres-credentials` from the demo values below.
+  existingSecret: ""
   username: dbuser
   password: dbpass123
   database: sourcedb
@@ -12,6 +15,10 @@ config:
   walLevel: logical
   maxWalSenders: 10
   maxReplicationSlots: 10
+  # Upper bound on WAL a replication slot may hold back. A stalled CDC consumer
+  # then invalidates its slot (and needs a re-snapshot) instead of filling the
+  # disk and taking the database down. Keep it well below the volume size.
+  maxSlotWalKeepSize: 2GB
 
 service:
   type: ClusterIP

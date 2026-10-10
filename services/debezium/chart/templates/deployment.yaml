@@ -52,6 +52,16 @@ spec:
           value: org.apache.kafka.connect.json.JsonConverter
         - name: CONNECT_REST_ADVERTISED_HOST_NAME
           value: debezium
+        # Resolve ${dir:<path>:<key>} placeholders in connector configs from
+        # files, so credentials stay in the mounted Secret.
+        - name: CONNECT_CONFIG_PROVIDERS
+          value: dir
+        - name: CONNECT_CONFIG_PROVIDERS_DIR_CLASS
+          value: org.apache.kafka.common.config.provider.DirectoryConfigProvider
+        volumeMounts:
+        - name: postgres-credentials
+          mountPath: /etc/debezium/secrets/postgres
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /
@@ -66,3 +76,7 @@ spec:
           periodSeconds: 5
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      - name: postgres-credentials
+        secret:
+          secretName: {{ .Values.credentials.existingSecret }}
